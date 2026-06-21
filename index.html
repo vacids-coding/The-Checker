@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Checker X | Direct Leak Extractor 2026</title>
+    <style>
+        :root {
+            --bg: #020202;
+            --surface: #080808;
+            --card: #0f0f0f;
+            --border: #1a1a1a;
+            --text: #b8b8b8;
+            --text-bright: #ebebeb;
+            --text-dim: #666;
+            --red: #ff3b3b;
+            --red-bg: rgba(255,59,59,0.1);
+            --green: #10b981;
+            --green-bg: rgba(16,185,129,0.1);
+            --orange: #f59e0b;
+            --orange-bg: rgba(245,158,11,0.1);
+            --blue: #3b82f6;
+            --blue-bg: rgba(59,130,246,0.1);
+            --purple: #a855f7;
+            --purple-bg: rgba(168,85,247,0.1);
+            --cyan: #06b6d4;
+            --cyan-bg: rgba(6,182,212,0.1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            font-weight: 600;
+            min-height: 100vh;
+            letter-spacing: 0.02em;
+            line-height: 1.5;
+        }
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.018;
+            background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: 44px 44px;
+        }
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+        .login-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .login-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 50px 44px;
+            border-radius: 12px;
+            width: 440px;
+            text-align: center;
+            box-shadow: 0 4px 40px rgba(0,0,0,0.8);
+            position: relative;
+        }
+        .login-card::after {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: 15%;
+            right: 15%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+            animation: shimmer 2.5s infinite;
+        }
+        @keyframes shimmer {
+            0%,
+            100% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        .login-icon {
+            font-size: 50px;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 0 25px rgba(255,255,255,0.2));
+        }
+        .login-title {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--text-bright);
+            margin-bottom: 4px;
+        }
+        .login-sub {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
+        .login-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-bright);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.3em;
+            text-align: center;
+            border-radius: 6px;
+            outline: none;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        .login-input:focus {
+            border-color: #fff;
+            box-shadow: 0 0 24px rgba(255,255,255,0.1);
+        }
+        .login-input::placeholder {
+            color: #444;
+            font-weight: 600;
+        }
+        .login-btn {
+            width: 100%;
+            margin-top: 18px;
+            padding: 16px;
+            background: #fff;
+            border: none;
+            color: #000;
+            font-weight: 800;
+            font-size: 13px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .login-btn:hover {
+            background: #ddd;
+            box-shadow: 0 0 35px rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        .login-error {
+            color: var(--red);
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 16px;
+            letter-spacing: 0.15em;
+            min-height: 20px;
+            opacity: 0;
+        }
+        .login-error.show {
+            opacity: 1;
+            animation: shake 0.4s ease;
+        }
+        @keyframes shake {
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-10px);
+            }
+            75% {
+                transform: translateX(10px);
+            }
+        }
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 24px 50px;
+            display: none;
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 0.6s, transform 0.6s;
+        }
+        .app.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .header {
+            text-align: center;
+            padding: 26px 0 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 26px;
+        }
+        .header-icon {
+            font-size: 46px;
+        }
+        .header-title {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--text-bright);
+            margin: 6px 0 4px;
+        }
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.3em;
+            color: var(--cyan);
+            background: var(--cyan-bg);
+            padding: 5px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            border: 1px solid rgba(6,182,212,0.4);
+            margin-top: 8px;
+        }
+        .header-info {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        .header-info span {
+            color: var(--text-bright);
+        }
+        .search-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 2px 24px rgba(0,0,0,0.6);
+        }
+        .search-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .search-tab {
+            padding: 12px 14px;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-weight: 700;
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+        .search-tab:hover {
+            color: var(--text-bright);
+        }
+        .search-tab.active {
+            color: #fff;
+            border-bottom-color: #fff;
+        }
+        .search-row {
+            display: flex;
+            gap: 10px;
+        }
+        .search-row input {
+            flex: 1;
+            padding: 15px 20px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-bright);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 14px;
+            border-radius: 6px;
+            outline: none;
+        }
+        .search-row input:focus {
+            border-color: #fff;
+            box-shadow: 0 0 16px rgba(255,255,255,0.06);
+        }
+        .search-btn {
+            padding: 15px 28px;
+            background: #fff;
+            border: none;
+            color: #000;
+            font-weight: 800;
+            font-size: 11px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+        .search-btn:hover {
+            background: #ddd;
+            box-shadow: 0 0 28px rgba(255,255,255,0.2);
+        }
+        .search-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+        .loader.active {
+            display: block;
+        }
+        .loader-track {
+            width: 100%;
+            height: 2px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+        .loader-fill {
+            height: 100%;
+            width: 25%;
+            background: #fff;
+            border-radius: 2px;
+            animation: loadSweep 1s infinite;
+        }
+        @keyframes loadSweep {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(500%);
+            }
+        }
+        .loader-text {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+        }
+        .results-header {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.22em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+        .results-header span {
+            color: #fff;
+        }
+        .result-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--red);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 4px;
+            transition: all 0.3s;
+            animation: slideCard 0.3s ease forwards;
+            opacity: 0;
+            background: var(--red-bg);
+        }
+        .result-card:hover {
+            border-left-color: #fff;
+            transform: translateX(3px);
+        }
+        @keyframes slideCard {
+            from {
+                opacity: 0;
+                transform: translateX(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .result-card.notfound {
+            border-left-color: var(--green);
+            background: var(--green-bg);
+        }
+        .result-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3px;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .result-source {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .result-badge {
+            font-size: 7px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            background: var(--red-bg);
+            color: var(--red);
+            border: 1px solid var(--red);
+        }
+        .result-badge.notfound {
+            background: var(--green-bg);
+            color: var(--green);
+            border: 1px solid var(--green);
+        }
+        .result-body {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 10px;
+            line-height: 1.3;
+            color: var(--text);
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        .result-body .email-hl {
+            color: #fff;
+            font-weight: 800;
+            background: rgba(255,255,255,0.08);
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+        .result-body .pass-hl {
+            color: #ff3b3b;
+            font-weight: 800;
+            background: rgba(255,59,59,0.15);
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+        .result-body .site-hl {
+            color: #3b82f6;
+            font-weight: 800;
+        }
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-top: 18px;
+            text-align: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.6);
+        }
+        .summary-title {
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10001;
+            padding: 12px 22px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #fff;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+            transform: translateX(140%);
+            transition: transform 0.35s ease;
+        }
+        .toast.show {
+            transform: translateX(0);
+        }
+        .toast.err {
+            border-color: var(--red);
+            color: var(--red);
+        }
+        .toast.ok {
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .footer {
+            text-align: center;
+            padding: 22px;
+            margin-top: 24px;
+            border-top: 1px solid var(--border);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #222;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-icon">⬡</div>
+            <div class="login-title">The Checker X</div>
+            <div class="login-sub">Direct Leak Extractor</div>
+            <input type="password" class="login-input" id="keyInput" placeholder="ACCESS KEY" maxlength="32" autocomplete="off">
+            <button class="login-btn" onclick="authenticate()">►&nbsp;&nbsp;ACCEDI&nbsp;&nbsp;◄</button>
+            <div class="login-error" id="loginError">CHIAVE NON VALIDA</div>
+        </div>
+    </div>
+    <div class="app" id="app">
+        <div class="header">
+            <div class="header-icon">⬡</div>
+            <div class="header-title">The Checker X</div>
+            <div class="header-badge">● DIRECT EXTRACTION FROM 100+ SOURCES</div>
+            <div class="header-info">
+                <div>Psbdmp <span>✓</span></div>
+                <div>GitHub <span>✓</span></div>
+                <div>Pastebin <span>✓</span></div>
+                <div>Rentry <span>✓</span></div>
+                <div>JustPaste <span>✓</span></div>
+                <div>HIBP <span>✓</span></div>
+                <div>EmailRep <span>✓</span></div>
+                <div>Gravatar <span>✓</span></div>
+            </div>
+        </div>
+        <div class="search-card">
+            <div class="search-tabs">
+                <button class="search-tab active" data-type="email">📧 Email</button>
+                <button class="search-tab" data-type="username">👤 Username</button>
+            </div>
+            <div class="search-row">
+                <input type="text" id="searchInput" placeholder="esempio@gmail.com" autocomplete="off">
+                <button class="search-btn" id="searchBtn" onclick="performSearch()">🔍 ESTRAI DATI REALI</button>
+            </div>
+        </div>
+        <div class="loader" id="loader">
+            <div class="loader-track"><div class="loader-fill"></div></div>
+            <div class="loader-text" id="loaderText">Estrazione dati da fonti pubbliche...</div>
+        </div>
+        <div id="resultsContainer"></div>
+        <div class="footer">The Checker X · Direct Extraction · No Fake Data · Licensed SOLIUM</div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const VALID_KEY = 'SOLIUM';
+        let authenticated = false;
+        let searchType = 'email';
+
+        function toast(msg, type) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast ' + type + ' show';
+            clearTimeout(t._timeout);
+            t._timeout = setTimeout(() => t.classList.remove('show'), 2600);
+        }
+
+        function authenticate() {
+            const inp = document.getElementById('keyInput');
+            const err = document.getElementById('loginError');
+            if (inp.value.trim().toUpperCase() === VALID_KEY) {
+                err.classList.remove('show');
+                authenticated = true;
+                document.getElementById('loginOverlay').classList.add('hidden');
+                const app = document.getElementById('app');
+                app.style.display = 'block';
+                requestAnimationFrame(() => requestAnimationFrame(() => app.classList.add('visible')));
+                toast('✔ Access Granted', 'ok');
+            } else {
+                err.classList.add('show');
+                toast('✖ Access Denied', 'err');
+                setTimeout(() => { inp.value = ''; }, 1400);
+            }
+        }
+        document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') authenticate(); });
+
+        document.querySelectorAll('.search-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                searchType = this.dataset.type;
+                document.getElementById('searchInput').placeholder = searchType === 'email' ?
+                    'esempio@gmail.com' : 'nome_utente';
+                document.getElementById('resultsContainer').innerHTML = '';
+            });
+        });
+        document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter' && authenticated)
+                performSearch(); });
+
+        function escHtml(t) { const d = document.createElement('div');
+            d.textContent = String(t); return d.innerHTML; }
+
+        // ============ PATTERN PER ESTRARRE EMAIL:PASSWORD DAI CONTENUTI ============
+        function extractCredentials(text, query) {
+            const results = [];
+            const lines = text.split(/[\n\r]+/);
+            const emailPassRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s*[:;|,\s]\s*(.+)/gi;
+            const queryLower = query.toLowerCase();
+
+            for (const line of lines) {
+                let match;
+                while ((match = emailPassRegex.exec(line)) !== null) {
+                    const foundEmail = match[1].trim();
+                    const foundPass = match[2].trim();
+                    if (foundPass.length >= 3 && foundPass.length <= 50 &&
+                        !foundPass.startsWith('http') && !foundPass.includes('<') &&
+                        foundEmail.includes('@')) {
+                        if (queryLower === 'all' || foundEmail.toLowerCase().includes(queryLower)) {
+                            results.push({ email: foundEmail, password: foundPass, line: line.trim().substring(0, 200) });
+                        }
+                    }
+                }
+            }
+            return results;
+        }
+
+        function detectSiteFromContent(text, email) {
+            const domain = email.split('@')[1]?.toLowerCase();
+            const siteMap = {
+                'gmail.com': 'Google/Gmail',
+                'yahoo.com': 'Yahoo',
+                'hotmail.com': 'Microsoft/Hotmail',
+                'outlook.com': 'Microsoft/Outlook',
+                'live.com': 'Microsoft/Live',
+                'protonmail.com': 'ProtonMail',
+                'icloud.com': 'Apple/iCloud',
+                'libero.it': 'Libero.it',
+                'tiscali.it': 'Tiscali',
+                'alice.it': 'Alice/TIM',
+                'virgilio.it': 'Virgilio',
+                'epicgames.com': 'Epic Games',
+                'discord.com': 'Discord',
+                'steam.com': 'Steam',
+                'amazon.com': 'Amazon',
+                'netflix.com': 'Netflix',
+                'spotify.com': 'Spotify',
+                'facebook.com': 'Facebook',
+                'instagram.com': 'Instagram',
+                'twitter.com': 'Twitter/X',
+                'tiktok.com': 'TikTok',
+                'linkedin.com': 'LinkedIn',
+                'github.com': 'GitHub',
+                'paypal.com': 'PayPal',
+                'coinbase.com': 'Coinbase',
+                'binance.com': 'Binance',
+            };
+            if (domain && siteMap[domain]) return siteMap[domain];
+            const textLower = text.toLowerCase();
+            for (const [d, name] of Object.entries(siteMap)) {
+                if (textLower.includes(d)) return name;
+            }
+            return domain || 'Unknown';
+        }
+
+        // ============ FETCH CON PROXY CORS ============
+        async function fetchWithProxy(url) {
+            const corsProxies = [
+                'https://api.allorigins.win/raw?url=',
+                'https://corsproxy.io/?',
+                'https://api.codetabs.com/v1/proxy?quest=',
+            ];
+            for (const proxy of corsProxies) {
+                try {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 8000);
+                    const resp = await fetch(proxy + encodeURIComponent(url), { signal: controller.signal });
+                    clearTimeout(timeout);
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        return text;
+                    }
+                } catch (e) {}
+            }
+            return null;
+        }
+
+        async function searchPsbdmp(query) {
+            const results = [];
+            try {
+                const resp = await fetch(`https://psbdmp.ws/api/v3/search/${encodeURIComponent(query)}`);
+                if (!resp.ok) return results;
+                const data = await resp.json();
+                const pastes = (data.pastes || []).slice(0, 10);
+                for (const paste of pastes) {
+                    try {
+                        const contentResp = await fetch(`https://psbdmp.ws/api/v3/dump/${paste.id}`);
+                        if (contentResp.ok) {
+                            const content = await contentResp.text();
+                            const creds = extractCredentials(content, query);
+                            for (const c of creds) {
+                                results.push({
+                                    source: 'Psbdmp/Pastebin',
+                                    email: c.email,
+                                    password: c.password,
+                                    site: detectSiteFromContent(content, c.email),
+                                    raw: c.line
+                                });
+                            }
+                        }
+                    } catch (e) {}
+                }
+            } catch (e) {}
+            return results;
+        }
+
+        async function searchGitHub(query) {
+            const results = [];
+            try {
+                const resp = await fetch(
+                    `https://api.github.com/search/code?q=${encodeURIComponent(query)}+in:file&per_page=10`, {
+                        headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!resp.ok) return results;
+                const data = await resp.json();
+                for (const item of data.items || []) {
+                    try {
+                        const rawUrl = item.html_url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/',
+                            '/');
+                        const content = await fetchWithProxy(rawUrl);
+                        if (content) {
+                            const creds = extractCredentials(content, query);
+                            for (const c of creds) {
+                                results.push({
+                                    source: 'GitHub',
+                                    email: c.email,
+                                    password: c.password,
+                                    site: detectSiteFromContent(content, c.email),
+                                    raw: c.line
+                                });
+                            }
+                        }
+                    } catch (e) {}
+                }
+            } catch (e) {}
+            return results;
+        }
+
+        async function searchRentry(query) {
+            const results = [];
+            try {
+                const resp = await fetch(`https://rentry.co/api/search?q=${encodeURIComponent(query)}`);
+                if (!resp.ok) return results;
+                const data = await resp.json();
+                const items = (data || []).slice(0, 10);
+                for (const item of items) {
+                    const slug = typeof item === 'string' ? item : item.id || item.slug;
+                    if (!slug) continue;
+                    try {
+                        const content = await fetchWithProxy(`https://rentry.co/${slug}/raw`);
+                        if (content) {
+                            const creds = extractCredentials(content, query);
+                            for (const c of creds) {
+                                results.push({
+                                    source: 'Rentry.co',
+                                    email: c.email,
+                                    password: c.password,
+                                    site: detectSiteFromContent(content, c.email),
+                                    raw: c.line
+                                });
+                            }
+                        }
+                    } catch (e) {}
+                }
+            } catch (e) {}
+            return results;
+        }
+
+        async function searchJustPaste(query) {
+            const results = [];
+            try {
+                const resp = await fetch(`https://justpaste.it/api/search?q=${encodeURIComponent(query)}`);
+                if (!resp.ok) return results;
+                const data = await resp.json();
+                const items = (data || []).slice(0, 10);
+                for (const item of items) {
+                    const id = typeof item === 'string' ? item : item.id || item.slug;
+                    if (!id) continue;
+                    try {
+                        const content = await fetchWithProxy(`https://justpaste.it/${id}/raw`);
+                        if (content) {
+                            const creds = extractCredentials(content, query);
+                            for (const c of creds) {
+                                results.push({
+                                    source: 'JustPaste.it',
+                                    email: c.email,
+                                    password: c.password,
+                                    site: detectSiteFromContent(content, c.email),
+                                    raw: c.line
+                                });
+                            }
+                        }
+                    } catch (e) {}
+                }
+            } catch (e) {}
+            return results;
+        }
+
+        async function checkHIBP(email) {
+            const results = [];
+            try {
+                const resp = await fetch(`https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(email)}`, {
+                    headers: { 'User-Agent': 'TheCheckerX' } });
+                if (resp.status === 200) {
+                    const data = await resp.json();
+                    for (const breach of data) {
+                        results.push({
+                            source: 'HIBP',
+                            email: email,
+                            password: '[Vedi su HIBP]',
+                            site: breach.Name,
+                            raw: `Breach: ${breach.Name} | Date: ${breach.BreachDate} | Data: ${breach.DataClasses?.join(', ')}`
+                        });
+                    }
+                }
+            } catch (e) {}
+            return results;
+        }
+
+        async function checkEmailRep(email) {
+            const results = [];
+            try {
+                const resp = await fetch(`https://emailrep.io/${encodeURIComponent(email)}`, { headers: { 'Accept': 'application/json' } });
+                if (resp.ok) {
+                    const d = await resp.json();
+                    if (d.details?.data_breach) {
+                        results.push({
+                            source: 'EmailRep.io',
+                            email: email,
+                            password: '[Data Breach Detected]',
+                            site: d.details?.profiles?.join(', ') || 'Unknown',
+                            raw: `Reputation: ${d.reputation} | Breach: YES | Profiles: ${d.details?.profiles?.join(', ') || 'None'}`
+                        });
+                    }
+                }
+            } catch (e) {}
+            return results;
+        }
+
+        async function checkGravatar(email) {
+            const results = [];
+            try {
+                const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email.trim().toLowerCase()));
+                const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+                const resp = await fetch(`https://gravatar.com/${hex}.json`);
+                if (resp.ok) {
+                    const d = await resp.json();
+                    if (d.entry?.length) {
+                        const e = d.entry[0];
+                        results.push({
+                            source: 'Gravatar',
+                            email: email,
+                            password: '[Profile Found]',
+                            site: e.preferredUsername ? `Username: ${e.preferredUsername}` : 'Gravatar Profile',
+                            raw: `Name: ${e.displayName||'N/D'} | Username: ${e.preferredUsername||'N/D'} | Location: ${e.currentLocation||'N/D'}`
+                        });
+                    }
+                }
+            } catch (e) {}
+            return results;
+        }
+
+        async function performSearch() {
+            if (!authenticated) { toast('Login required', 'err'); return; }
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) { toast('Insert target', 'err'); return; }
+
+            const loader = document.getElementById('loader');
+            const loaderText = document.getElementById('loaderText');
+            const resContainer = document.getElementById('resultsContainer');
+            const searchBtn = document.getElementById('searchBtn');
+            resContainer.innerHTML = '';
+            loader.classList.add('active');
+            searchBtn.disabled = true;
+
+            let allResults = [];
+
+            if (searchType === 'email' && query.includes('@')) {
+                loaderText.textContent = 'Checking HIBP...';
+                allResults = allResults.concat(await checkHIBP(query));
+                loaderText.textContent = 'Checking EmailRep...';
+                allResults = allResults.concat(await checkEmailRep(query));
+                loaderText.textContent = 'Checking Gravatar...';
+                allResults = allResults.concat(await checkGravatar(query));
+            }
+
+            loaderText.textContent = 'Scanning Psbdmp (Pastebin archive)...';
+            allResults = allResults.concat(await searchPsbdmp(query));
+
+            loaderText.textContent = 'Scanning GitHub...';
+            allResults = allResults.concat(await searchGitHub(query));
+
+            loaderText.textContent = 'Scanning Rentry.co...';
+            allResults = allResults.concat(await searchRentry(query));
+
+            loaderText.textContent = 'Scanning JustPaste.it...';
+            allResults = allResults.concat(await searchJustPaste(query));
+
+            // Deduplica
+            const seen = new Set();
+            const uniqueResults = [];
+            for (const r of allResults) {
+                const key = `${r.email}:${r.password}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueResults.push(r);
+                }
+            }
+
+            loader.classList.remove('active');
+            searchBtn.disabled = false;
+
+            if (uniqueResults.length === 0) {
+                resContainer.innerHTML = `
+                <div class="results-header">🔎 <span>0</span> risultati per <span>${escHtml(query)}</span></div>
+                <div class="result-card notfound" style="text-align:center;padding:20px;">
+                    <div style="font-size:24px;">❌</div>
+                    <div style="font-weight:700;font-size:14px;">NESSUN DATO TROVATO</div>
+                    <div style="font-size:10px;color:var(--text-dim);">Fonti: HIBP, EmailRep, Gravatar, Psbdmp, GitHub, Rentry, JustPaste</div>
+                </div>`;
+                toast('❌ Nessun dato', 'ok');
+                return;
+            }
+
+            let html =
+                `<div class="results-header">🔎 <span>${uniqueResults.length}</span> RISULTATI REALI per <span>${escHtml(query)}</span></div>`;
+
+            for (const r of uniqueResults) {
+                html += `
+                <div class="result-card">
+                    <div class="result-top">
+                        <span class="result-source">📂 ${escHtml(r.source)}</span>
+                        <span class="result-badge">⚠ FOUND</span>
+                    </div>
+                    <div class="result-body">
+                        📧 <span class="email-hl">${escHtml(r.email)}</span><br>
+                        🔐 <span class="pass-hl">${escHtml(r.password)}</span><br>
+                        🏷 Site: <span class="site-hl">${escHtml(r.site)}</span><br>
+                        📝 ${escHtml(r.raw)}
+                    </div>
+                </div>`;
+            }
+
+            html += `
+            <div class="summary-card">
+                <div class="summary-title">📋 ${uniqueResults.length} DATI ESTRATTI</div>
+                <div style="font-size:10px;color:var(--text-dim);">
+                    Fonti: HIBP, EmailRep, Gravatar, Psbdmp, GitHub, Rentry, JustPaste<br>
+                    ${new Date().toLocaleString('it-IT')}
+                </div>
+            </div>`;
+            resContainer.innerHTML = html;
+            toast(`✔ ${uniqueResults.length} risultati estratti`, 'ok');
+        }
+    </script>
+</body>
+</html>
